@@ -1,0 +1,578 @@
+<!DOCTYPE html><html lang="en"><head><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>South African Universities Quality Map</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/1.6.5/flowbite.min.css" rel="stylesheet">
+    <script src="https://maps.googleapis.com/maps/api/js?key=&amp;callback=initMap" defer=""></script>
+    <style>
+        :root {
+            --primary-color: #5D5CDE;
+            --light-bg: #FFFFFF;
+            --dark-bg: #181818;
+            --light-text: #333333;
+            --dark-text: #F5F5F5;
+            --light-card-bg: #F8F9FA;
+            --dark-card-bg: #2D2D2D;
+            --light-border: #E5E7EB;
+            --dark-border: #4B5563;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: var(--dark-bg);
+                color: var(--dark-text);
+            }
+            .card {
+                background-color: var(--dark-card-bg);
+                border-color: var(--dark-border);
+            }
+            .university-details {
+                background-color: var(--dark-card-bg);
+                border-color: var(--dark-border);
+            }
+            .legend {
+                background-color: var(--dark-card-bg);
+                border-color: var(--dark-border);
+            }
+        }
+
+        @media (prefers-color-scheme: light) {
+            body {
+                background-color: var(--light-bg);
+                color: var(--light-text);
+            }
+            .card {
+                background-color: var(--light-card-bg);
+                border-color: var(--light-border);
+            }
+            .university-details {
+                background-color: var(--light-card-bg);
+                border-color: var(--light-border);
+            }
+            .legend {
+                background-color: var(--light-card-bg);
+                border-color: var(--light-border);
+            }
+        }
+
+        #map {
+            height: 70vh;
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-box {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        .university-details {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid;
+            border-radius: 8px;
+            margin-top: 20px;
+            padding: 15px;
+            display: none;
+        }
+
+        .quality-indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .rating-bar {
+            height: 12px;
+            border-radius: 6px;
+            margin-top: 4px;
+        }
+
+        .category-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            margin-bottom: 2px;
+        }
+
+        .quality-metrics {
+            margin-top: 15px;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        /* Loading animation */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.7);
+            z-index: 999;
+        }
+
+        .loading-dark {
+            background-color: rgba(24, 24, 24, 0.7);
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(93, 92, 222, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 640px) {
+            #map {
+                height: 60vh;
+            }
+            
+            .legend {
+                bottom: 10px;
+                right: 10px;
+                padding: 8px;
+                font-size: 0.75rem;
+            }
+            
+            .color-box {
+                width: 12px;
+                height: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-6 text-center">South African Universities Quality Map</h1>
+        <p class="mb-6 text-center">Interactive map showing the quality ratings of universities across South Africa. Green markers indicate higher quality services, while red markers indicate lower quality.</p>
+        
+        <div class="relative mb-8">
+            <div id="map" class="shadow-lg"></div>
+            <div class="legend shadow-md">
+                <div class="text-sm font-medium mb-2">Quality Rating</div>
+                <div class="legend-item">
+                    <div class="color-box" style="background-color: #00A86B;"></div>
+                    <span>Excellent (80-100%)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="color-box" style="background-color: #7CCD7C;"></div>
+                    <span>Very Good (70-79%)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="color-box" style="background-color: #FFD700;"></div>
+                    <span>Good (60-69%)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="color-box" style="background-color: #FFA500;"></div>
+                    <span>Average (50-59%)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="color-box" style="background-color: #FF4500;"></div>
+                    <span>Below Average (40-49%)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="color-box" style="background-color: #FF0000;"></div>
+                    <span>Poor (0-39%)</span>
+                </div>
+            </div>
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+            </div>
+        </div>
+
+        <div id="universityDetails" class="university-details">
+            <div id="detailsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // University data with quality ratings
+        const universities = [
+            {
+                name: "University of Cape Town",
+                location: { lat: -33.9579, lng: 18.4611 },
+                overall: 88,
+                categories: {
+                    "Academic Quality": 92,
+                    "Student Support Services": 85,
+                    "Infrastructure & Facilities": 88,
+                    "Research Output": 94,
+                    "Student Satisfaction": 83
+                },
+                description: "UCT is consistently ranked as the top university in Africa with excellent academic programs and research facilities."
+            },
+            {
+                name: "University of the Witwatersrand",
+                location: { lat: -26.1929, lng: 28.0305 },
+                overall: 85,
+                categories: {
+                    "Academic Quality": 89,
+                    "Student Support Services": 80,
+                    "Infrastructure & Facilities": 83,
+                    "Research Output": 92,
+                    "Student Satisfaction": 79
+                },
+                description: "Wits University is renowned for its high academic standards and strong research focus across multiple disciplines."
+            },
+            {
+                name: "Stellenbosch University",
+                shortName: "SU",
+                location: { lat: -33.9328, lng: 18.8644 },
+                overall: 84,
+                logoColor: "#8C1D40",
+                categories: {
+                    "Academic Quality": 87,
+                    "Student Support Services": 83,
+                    "Infrastructure & Facilities": 86,
+                    "Research Output": 85,
+                    "Student Satisfaction": 81
+                },
+                description: "Located in the picturesque town of Stellenbosch, this university offers a blend of academic excellence and quality student experience."
+            },
+            {
+                name: "University of Pretoria",
+                shortName: "UP",
+                location: { lat: -25.7545, lng: 28.2314 },
+                overall: 78,
+                logoColor: "#7C225E",
+                categories: {
+                    "Academic Quality": 82,
+                    "Student Support Services": 75,
+                    "Infrastructure & Facilities": 80,
+                    "Research Output": 79,
+                    "Student Satisfaction": 76
+                },
+                description: "UP is one of South Africa's largest research universities with a diverse range of academic programs and modern facilities."
+            },
+            {
+                name: "University of KwaZulu-Natal",
+                location: { lat: -29.8674, lng: 30.9799 },
+                overall: 73,
+                categories: {
+                    "Academic Quality": 76,
+                    "Student Support Services": 70,
+                    "Infrastructure & Facilities": 72,
+                    "Research Output": 78,
+                    "Student Satisfaction": 69
+                },
+                description: "UKZN is known for its strong focus on research and community engagement across its five campuses."
+            },
+            {
+                name: "Rhodes University",
+                location: { lat: -33.3106, lng: 26.5163 },
+                overall: 75,
+                categories: {
+                    "Academic Quality": 78,
+                    "Student Support Services": 77,
+                    "Infrastructure & Facilities": 70,
+                    "Research Output": 72,
+                    "Student Satisfaction": 82
+                },
+                description: "Rhodes offers a unique student experience with small class sizes and a strong sense of community."
+            },
+            {
+                name: "University of Johannesburg",
+                location: { lat: -26.1867, lng: 28.0081 },
+                overall: 69,
+                categories: {
+                    "Academic Quality": 72,
+                    "Student Support Services": 68,
+                    "Infrastructure & Facilities": 74,
+                    "Research Output": 67,
+                    "Student Satisfaction": 65
+                },
+                description: "UJ has established itself as a comprehensive institution that delivers quality education across a wide range of disciplines."
+            },
+            {
+                name: "North-West University",
+                location: { lat: -26.6841, lng: 27.0921 },
+                overall: 65,
+                categories: {
+                    "Academic Quality": 68,
+                    "Student Support Services": 65,
+                    "Infrastructure & Facilities": 63,
+                    "Research Output": 62,
+                    "Student Satisfaction": 68
+                },
+                description: "NWU focuses on teaching-learning excellence and offers programs in both English and Afrikaans."
+            },
+            {
+                name: "University of the Free State",
+                location: { lat: -29.1076, lng: 26.1911 },
+                overall: 62,
+                categories: {
+                    "Academic Quality": 65,
+                    "Student Support Services": 60,
+                    "Infrastructure & Facilities": 61,
+                    "Research Output": 59,
+                    "Student Satisfaction": 64
+                },
+                description: "UFS is committed to equity and diversity with a focus on student success and community engagement."
+            },
+            {
+                name: "Nelson Mandela University",
+                location: { lat: -34.0007, lng: 25.6717 },
+                overall: 67,
+                categories: {
+                    "Academic Quality": 69,
+                    "Student Support Services": 67,
+                    "Infrastructure & Facilities": 65,
+                    "Research Output": 63,
+                    "Student Satisfaction": 71
+                },
+                description: "NMU offers a range of programs with a focus on innovation, sustainability, and community engagement."
+            },
+            {
+                name: "University of the Western Cape",
+                location: { lat: -33.9328, lng: 18.6298 },
+                overall: 64,
+                categories: {
+                    "Academic Quality": 67,
+                    "Student Support Services": 62,
+                    "Infrastructure & Facilities": 60,
+                    "Research Output": 68,
+                    "Student Satisfaction": 63
+                },
+                description: "UWC has played a distinctive academic role in helping to build an equitable and dynamic South African nation."
+            },
+            {
+                name: "University of Fort Hare",
+                location: { lat: -32.7865, lng: 26.8497 },
+                overall: 52,
+                categories: {
+                    "Academic Quality": 56,
+                    "Student Support Services": 48,
+                    "Infrastructure & Facilities": 45,
+                    "Research Output": 53,
+                    "Student Satisfaction": 55
+                },
+                description: "This historic institution played a significant role in South Africa's liberation struggle and continues to focus on transformation."
+            },
+            {
+                name: "University of Limpopo",
+                location: { lat: -23.8789, lng: 29.7405 },
+                overall: 48,
+                categories: {
+                    "Academic Quality": 52,
+                    "Student Support Services": 45,
+                    "Infrastructure & Facilities": 42,
+                    "Research Output": 47,
+                    "Student Satisfaction": 50
+                },
+                description: "Located in South Africa's northern region, UL focuses on addressing the needs of rural communities through education and research."
+            },
+            {
+                name: "University of Venda",
+                location: { lat: -23.0001, lng: 30.4451 },
+                overall: 45,
+                categories: {
+                    "Academic Quality": 48,
+                    "Student Support Services": 42,
+                    "Infrastructure & Facilities": 40,
+                    "Research Output": 43,
+                    "Student Satisfaction": 47
+                },
+                description: "UniVen is focused on rural development and providing access to higher education in the Limpopo province."
+            },
+            {
+                name: "Cape Peninsula University of Technology",
+                location: { lat: -33.9320, lng: 18.6427 },
+                overall: 58,
+                categories: {
+                    "Academic Quality": 60,
+                    "Student Support Services": 55,
+                    "Infrastructure & Facilities": 59,
+                    "Research Output": 52,
+                    "Student Satisfaction": 63
+                },
+                description: "CPUT focuses on technology education with strong industry partnerships and practical training."
+            },
+            {
+                name: "Walter Sisulu University",
+                location: { lat: -31.5888, lng: 28.7733 },
+                overall: 42,
+                categories: {
+                    "Academic Quality": 45,
+                    "Student Support Services": 40,
+                    "Infrastructure & Facilities": 38,
+                    "Research Output": 40,
+                    "Student Satisfaction": 45
+                },
+                description: "WSU serves predominantly rural Eastern Cape communities with a focus on accessible higher education."
+            }
+        ];
+
+        // Function to determine marker color based on quality rating
+        function getMarkerColor(rating) {
+            if (rating >= 80) return '#00A86B'; // Excellent - Emerald Green
+            if (rating >= 70) return '#7CCD7C'; // Very Good - Light Green
+            if (rating >= 60) return '#FFD700'; // Good - Gold
+            if (rating >= 50) return '#FFA500'; // Average - Orange
+            if (rating >= 40) return '#FF4500'; // Below Average - Orange Red
+            return '#FF0000';                   // Poor - Red
+        }
+
+        // Function to initialize the map
+        function initMap() {
+            // Center on South Africa
+            const southAfricaCenter = { lat: -30.5595, lng: 22.9375 };
+            
+            const map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 5.5,
+                center: southAfricaCenter,
+                mapTypeControl: true,
+                streetViewControl: false,
+                fullscreenControl: true,
+                zoomControl: true,
+                mapId: 'e8952c2bb23b47fc'
+            });
+
+            const detailsDiv = document.getElementById("universityDetails");
+            const detailsContent = document.getElementById("detailsContent");
+            
+            // Add markers for each university
+            universities.forEach(university => {
+                const markerColor = getMarkerColor(university.overall);
+                
+                // Create customized marker
+                const marker = new google.maps.Marker({
+                    position: university.location,
+                    map: map,
+                    title: university.name,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 10,
+                        fillColor: markerColor,
+                        fillOpacity: 0.9,
+                        strokeWeight: 2,
+                        strokeColor: '#FFFFFF'
+                    }
+                });
+                
+                // Add click listener to show university details
+                marker.addListener("click", () => {
+                    showUniversityDetails(university);
+                    detailsDiv.style.display = "block";
+                    
+                    // Smooth scroll to details section on mobile
+                    if (window.innerWidth < 768) {
+                        detailsDiv.scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
+            });
+            
+            // Hide loading spinner when map is loaded
+            google.maps.event.addListenerOnce(map, 'idle', function() {
+                document.getElementById('loading').style.display = 'none';
+            });
+            
+            // Check dark mode preference for loading overlay
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.getElementById('loading').classList.add('loading-dark');
+            }
+        }
+        
+        // Function to show university details
+        function showUniversityDetails(university) {
+            const detailsContent = document.getElementById("detailsContent");
+            
+            // Helper function to generate quality bar HTML
+            function getQualityBar(rating) {
+                const color = getMarkerColor(rating);
+                return `
+                    <div class="category-label">
+                        <span>${rating}%</span>
+                    </div>
+                    <div class="rating-bar" style="width: ${rating}%; background-color: ${color};"></div>
+                `;
+            }
+            
+            let categoryMetricsHTML = '';
+            for (const [category, rating] of Object.entries(university.categories)) {
+                categoryMetricsHTML += `
+                    <div class="mb-3">
+                        <div class="category-label">
+                            <span>${category}</span>
+                            <span>${rating}%</span>
+                        </div>
+                        <div class="rating-bar" style="width: ${rating}%; background-color: ${getMarkerColor(rating)};"></div>
+                    </div>
+                `;
+            }
+            
+            detailsContent.innerHTML = `
+                <div class="mb-4">
+                    <div class="flex items-center card-title">
+                        <span class="quality-indicator" style="background-color: ${getMarkerColor(university.overall)};"></span>
+                        ${university.name}
+                    </div>
+                    <p class="mb-2">${university.description}</p>
+                    <div class="text-lg font-semibold mt-3">Overall Quality Rating</div>
+                    <div class="mt-1 mb-3">
+                        ${getQualityBar(university.overall)}
+                    </div>
+                </div>
+                
+                <div class="quality-metrics">
+                    <div class="text-lg font-semibold mb-2">Quality Metrics</div>
+                    ${categoryMetricsHTML}
+                </div>
+            `;
+        }
+        
+        // Initialize map when script is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Map is initialized via callback parameter in script tag
+            // Check if we need to wait for the API to load
+            if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
+                console.log("Waiting for Google Maps API to load...");
+            } else {
+                initMap();
+            }
+        });
+    </script>
+
+
+</body></html>
