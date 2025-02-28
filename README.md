@@ -1,8 +1,8 @@
-## za-varisty-quality-map
+# A map primarily of South Africa that uses Google Maps API and UI to geographically locate the various qualities of universities around the country.
 
-An alpha version of a web app to show the variance of quality between South Africa's know universities, currently still in devlopment
+In the Alpha version
 
-# Imrprovement/Needs for change:
+## Imrprovement/Needs for change:
 
 • Add more universities to the network, like, a lot.
 • API key still needed 
